@@ -102,6 +102,14 @@ function withEvents(BCPlayerComponent) {
 			this.props.onDurationChange && this.props.onDurationChange(event);
 		}
 
+		/**
+		 * Event triggered every 30 seconds
+		 * @param {NativeEvent} event
+		 */
+		onWatchedTime(event) {
+			this.onEvent({'type': PlayerEventTypes.WATCHED_TIME, watchedTime: event.watchedTime, totalWatchedTime: event.totalWatchedTime});
+			this.props.onWatchedTime && this.props.onWatchedTime(event);
+		}
 
 		/**
 		 * Event triggered as the stream progress.
@@ -187,15 +195,6 @@ function withEvents(BCPlayerComponent) {
 		onLiveSelection(event) {
 			this.onEvent({'type': PlayerEventTypes.LIVE_BUTTON_CLICKED});
 			this.props.onLiveSelection && this.props.onLiveSelection(event);
-		}
-
-		/**
-		 * Event triggered when the user watches content for X amount of time
-		 * @param {NativeEvent} event
-		 */
-		onWatchedTime(event) {
-			this.onEvent({'type': PlayerEventTypes.WATCHED_TIME});
-			this.props.onWatchedTime && this.props.onWatchedTime(event);
 		}
 
 		/**

@@ -24,5 +24,5 @@ module.exports = {
 	REPLAY: 'REPLAY',
 	REWIND: 'REWIND',
 	FORWARD: 'FORWARD',
-	SEEK_TO: 'SEEK_TO'
+	SEEK_TO: 'SEEK_TO',
 };

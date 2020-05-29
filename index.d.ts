@@ -33,6 +33,7 @@ export type BrightcovePlayerProps = {
   onExitFullscreen?: () => void;
   onError?: () => void;
   onNetworkConnectivityChange?: () => void;
+  onWatchedTime?: ({ watchedTime: number, totalWatchedTime: number }) => void;
   style?: ViewStyle;
 };
 
