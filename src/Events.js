@@ -281,7 +281,7 @@ function withEvents(BCPlayerComponent) {
 				videoId: this.props.videoId,
 				referenceId: this.props.referenceId,
 				accountId: this.props.accountId,
-				playerId: this.props.playerId,
+				playerId: event.type === PlayerEventTypes.WATCHED_TIME ? Platform.OS : this.props.playerId,
 				platform: Platform.OS,
 				mediaType: this.props.playerType === 'VoD' ? 'VoD' : 'LiveStream'
 			}

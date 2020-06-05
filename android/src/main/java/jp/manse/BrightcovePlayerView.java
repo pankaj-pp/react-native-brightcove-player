@@ -94,6 +94,7 @@ public class BrightcovePlayerView extends RelativeLayout implements LifecycleEve
     private String uuid;
     private PlayTimer playTimer;
     final long heartBeatInterval = 30000;
+    int totalWatchedTime=0;
     final Handler handler = new Handler();
     Runnable heartBeatRunnable = new Runnable() {
 
@@ -109,9 +110,10 @@ public class BrightcovePlayerView extends RelativeLayout implements LifecycleEve
                 watchTime = playTimer.elapsedTime;
                 playTimer.stop();
             }
-
+            totalWatchedTime=totalWatchedTime+watchTime;
             WritableMap event = Arguments.createMap();
-            event.putInt(BrightcovePlayerManager.PROPERTY_WATCHED_TIME_DURATION, watchTime);
+            event.putInt(BrightcovePlayerManager.PROPERTY_WATCHED_TIME, watchTime);
+            event.putInt(BrightcovePlayerManager.PROPERTY_TOTAL_WATCHED_TIME, totalWatchedTime);
             ReactContext reactContext = (ReactContext) BrightcovePlayerView.this.getContext();
             reactContext
                 .getJSModule(RCTEventEmitter.class)
