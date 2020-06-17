@@ -345,15 +345,11 @@ NSString *deviceName() {
 #pragma mark - BCOVPlaybackControllerDelegate
 
 - (NSNumber *)liveEdge {
-    CMTimeRange seekableRange = [_playbackSession.player.currentItem.seekableTimeRanges.lastObject CMTimeRangeValue];
+    CMTimeRange seekableRange = [playbackSession.player.currentItem.seekableTimeRanges.lastObject CMTimeRangeValue];
     CGFloat seekableStart = CMTimeGetSeconds(seekableRange.start);
     CGFloat seekableDuration = CMTimeGetSeconds(seekableRange.duration);
     CGFloat livePosition = seekableStart + seekableDuration;
     return @(!isnan(livePosition) ? livePosition : 0);
-}
-
-- (void)seekToLive {
-    [self seekTo:[self liveEdge]];
 }
 
 - (void)playbackController:(id<BCOVPlaybackController>)controller playbackSession:(id<BCOVPlaybackSession>)session didReceiveLifecycleEvent:(BCOVPlaybackSessionLifecycleEvent *)lifecycleEvent {
@@ -412,9 +408,6 @@ NSString *deviceName() {
             self.onPlay(@{});
         }
 
-        [self startSendTimer];
-        [self startCountTimer];
-
         [_analytics handlePlaying];
     } else if (lifecycleEvent.eventType == kBCOVPlaybackSessionLifecycleEventPause) {
         [self stopWatchedTimer];
@@ -425,7 +418,6 @@ NSString *deviceName() {
                 self.onPause(@{});
             }
 
-            [self stopCountTimer];
 
             // Hide controls view after pause a video
             [self refreshControlsView];
@@ -436,11 +428,7 @@ NSString *deviceName() {
         if (self.onEnd) {
             self.onEnd(@{});
         }
-
-        [self stopCountTimer];
-        [self stopSendTimer];
-        [self resetWatchedTime];
-
+        
         [_analytics handlePlayEnd:kPlaybackEnd];
     }
 
@@ -529,7 +517,7 @@ NSString *deviceName() {
     if (self.onProgress && progress > 0 && progress != INFINITY) {
         self.onProgress(@{
                           kCurrentTimeKey: @(progress),
-                          kDurationKey: @(!isnan(duration) ? duration : -1)
+                          kDurationKey: @(!isnan(duration) ? duration : -1),
                           @"liveEdge": [self liveEdge],
                           @"isInLiveEdge": @(abs((int)(progress - [[self liveEdge] doubleValue])) < 7)
                           });
