@@ -9,13 +9,16 @@
 @property (nonatomic) NSLayoutConstraint *centreVerticallyConstraint;
 @property (nonatomic) NSLayoutConstraint *widthConstraint;
 @property (nonatomic) NSLayoutConstraint *heightConstraint;
-@property (nonatomic) int watchedTime;
-@property (nonatomic, strong) NSTimer *countTimer;
-@property (nonatomic, strong) NSTimer *sendTimer;
+
 @property (nonatomic) long currentBytesLoaded;
 @property (nonatomic) NSInteger currentDroppedFrames;
 @property (nonatomic) float lastBitRate;
 @property (nonatomic) NSString *streamUrl;
+
+@property (nonatomic) NSTimer *watchedTimer;
+@property (nonatomic) NSTimer *sendWatchedTimer;
+@property (nonatomic) NSTimeInterval watchedTime;
+@property (nonatomic) NSTimeInterval totalWachedTime;
 
 #pragma mark - Constants
 
@@ -69,50 +72,14 @@
 }
 
 - (void)dispose {
+    [self stopWatchedTimer];
+    [self startSendWatchedTimer];
     [_analytics handlePlayEnd:kPlaybackExit];
     [self.playbackController setVideos:@[]];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 #pragma mark - Setups
-
-- (void)startSendTimer {
-    if (self.sendTimer == nil) {
-        if (@available(iOS 10.0, *)) {
-            self.sendTimer = [NSTimer scheduledTimerWithTimeInterval:30.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
-                if (self.onWatchedTime && _playing) {
-                    self.onWatchedTime(@{ @"WATCHED_TIME": [NSNumber numberWithInt:self.watchedTime] });
-                }
-            }];
-        }
-    }
-}
-
-- (void)stopSendTimer {
-    [self.sendTimer invalidate];
-    self.sendTimer = nil;
-}
-
-- (void)startCountTimer {
-    if (self.countTimer == nil) {
-        if (@available(iOS 10.0, *)) {
-            self.countTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
-                if (self.playing) {
-                    self.watchedTime++;
-                }
-            }];
-        }
-    }
-}
-
-- (void)stopCountTimer {
-    [self.countTimer invalidate];
-    self.countTimer = nil;
-}
-
-- (void)resetWatchedTime {
-    self.watchedTime = 1;
-}
 
 - (void)setup {
     _playbackController = [BCOVPlayerSDKManager.sharedManager createPlaybackController];
@@ -133,8 +100,6 @@
     _autoPlay = NO;
 
     [self addSubview:_playerView];
-
-    [self resetWatchedTime];
 }
 
 - (void)setupService {
@@ -380,15 +345,11 @@ NSString *deviceName() {
 #pragma mark - BCOVPlaybackControllerDelegate
 
 - (NSNumber *)liveEdge {
-    CMTimeRange seekableRange = [_playbackSession.player.currentItem.seekableTimeRanges.lastObject CMTimeRangeValue];
+    CMTimeRange seekableRange = [playbackSession.player.currentItem.seekableTimeRanges.lastObject CMTimeRangeValue];
     CGFloat seekableStart = CMTimeGetSeconds(seekableRange.start);
     CGFloat seekableDuration = CMTimeGetSeconds(seekableRange.duration);
     CGFloat livePosition = seekableStart + seekableDuration;
     return @(!isnan(livePosition) ? livePosition : 0);
-}
-
-- (void)seekToLive {
-    [self seekTo:[self liveEdge]];
 }
 
 - (void)playbackController:(id<BCOVPlaybackController>)controller playbackSession:(id<BCOVPlaybackSession>)session didReceiveLifecycleEvent:(BCOVPlaybackSessionLifecycleEvent *)lifecycleEvent {
@@ -436,24 +397,27 @@ NSString *deviceName() {
             [_playbackController play];
         }
     } else if (lifecycleEvent.eventType == kBCOVPlaybackSessionLifecycleEventPlay) {
+        if (!_playing) {
+            [self startWatchedTimer];
+            [self startSendWatchedTimer];
+        }
+        
         _playing = true;
         [self refreshPlaybackRate];
         if (self.onPlay) {
             self.onPlay(@{});
         }
 
-        [self startSendTimer];
-        [self startCountTimer];
-
         [_analytics handlePlaying];
     } else if (lifecycleEvent.eventType == kBCOVPlaybackSessionLifecycleEventPause) {
+        [self stopWatchedTimer];
+        
         if (_playing) {
             _playing = false;
             if (self.onPause) {
                 self.onPause(@{});
             }
 
-            [self stopCountTimer];
 
             // Hide controls view after pause a video
             [self refreshControlsView];
@@ -464,11 +428,7 @@ NSString *deviceName() {
         if (self.onEnd) {
             self.onEnd(@{});
         }
-
-        [self stopCountTimer];
-        [self stopSendTimer];
-        [self resetWatchedTime];
-
+        
         [_analytics handlePlayEnd:kPlaybackEnd];
     }
 
@@ -557,7 +517,7 @@ NSString *deviceName() {
     if (self.onProgress && progress > 0 && progress != INFINITY) {
         self.onProgress(@{
                           kCurrentTimeKey: @(progress),
-                          kDurationKey: @(!isnan(duration) ? duration : -1)
+                          kDurationKey: @(!isnan(duration) ? duration : -1),
                           @"liveEdge": [self liveEdge],
                           @"isInLiveEdge": @(abs((int)(progress - [[self liveEdge] doubleValue])) < 7)
                           });
@@ -796,4 +756,58 @@ NSString *deviceName() {
     }
     return df;
 }
+
+#pragma mark - Watched Time
+
+- (void)startWatchedTimer {
+    if (!_watchedTimer) {
+        _watchedTimer = [NSTimer scheduledTimerWithTimeInterval:1.0f
+                                                         target:self
+                                                       selector:@selector(_watchedTimerFired:)
+                                                       userInfo:nil
+                                                        repeats:YES];
+    }
+}
+
+- (void)stopWatchedTimer {
+    if ([_watchedTimer isValid]) {
+        [_watchedTimer invalidate];
+    }
+    _watchedTimer = nil;
+}
+
+- (void)_watchedTimerFired:(NSTimer *)timer {
+    _watchedTime += 1;
+}
+
+- (void)startSendWatchedTimer {
+    if (!_sendWatchedTimer) {
+        _sendWatchedTimer = [NSTimer scheduledTimerWithTimeInterval:30.0f
+                                                         target:self
+                                                       selector:@selector(_sendWatchedTimerFired:)
+                                                       userInfo:nil
+                                                        repeats:YES];
+    }
+}
+
+- (void)stopSendWatchedTimer {
+    if ([_sendWatchedTimer isValid]) {
+        [_sendWatchedTimer invalidate];
+    }
+    _sendWatchedTimer = nil;
+}
+
+- (void)_sendWatchedTimerFired:(NSTimer *)timer {
+    _totalWachedTime += _watchedTime;
+    
+    if (self.onWatchedTime) {
+        self.onWatchedTime(@{
+             @"watchedTime": @(_watchedTime),
+             @"totalWatchedTime": @(_totalWachedTime),
+        });
+    }
+    
+    _watchedTime = 0;
+}
+
 @end

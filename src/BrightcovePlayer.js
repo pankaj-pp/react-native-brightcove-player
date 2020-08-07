@@ -114,6 +114,9 @@ class BrightcovePlayer extends Component {
         onError={event => {
           this.props.onError && this.props.onError(event.nativeEvent)
         }}
+        onWatchedTime={event => {
+          this.props.onWatchedTime && this.props.onWatchedTime(event.nativeEvent)
+        }}
       />
     );
   }
@@ -242,7 +245,8 @@ BrightcovePlayer.propTypes = {
   onWatchedTime: PropTypes.func,
   onRewind: PropTypes.func,
   onError: PropTypes.func,
-  onNetworkConnectivityChange: PropTypes.func
+  onNetworkConnectivityChange: PropTypes.func,
+  onWatchedTime: PropTypes.func
 };
 
 BrightcovePlayer.defaultProps = {};

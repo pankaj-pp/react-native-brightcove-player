@@ -102,6 +102,14 @@ function withEvents(BCPlayerComponent) {
 			this.props.onDurationChange && this.props.onDurationChange(event);
 		}
 
+		/**
+		 * Event triggered every 30 seconds
+		 * @param {NativeEvent} event
+		 */
+		onWatchedTime(event) {
+			this.onEvent({'type': PlayerEventTypes.WATCHED_TIME, watchedTime: event.watchedTime, totalWatchedTime: event.totalWatchedTime});
+			this.props.onWatchedTime && this.props.onWatchedTime(event);
+		}
 
 		/**
 		 * Event triggered as the stream progress.
@@ -193,15 +201,6 @@ function withEvents(BCPlayerComponent) {
 		 * Event triggered when the user watches content for X amount of time
 		 * @param {NativeEvent} event
 		 */
-		onWatchedTime(event) {
-			this.onEvent({'type': PlayerEventTypes.WATCHED_TIME});
-			this.props.onWatchedTime && this.props.onWatchedTime(event);
-		}
-
-		/**
-		 * Event triggered when the user watches content for X amount of time
-		 * @param {NativeEvent} event
-		 */
 		onRewind(event) {
 			this.onEvent({'type': PlayerEventTypes.REWIND_BUTTON_CLICKED});
 			this.props.onRewind && this.props.onRewind(event);
@@ -282,7 +281,7 @@ function withEvents(BCPlayerComponent) {
 				videoId: this.props.videoId,
 				referenceId: this.props.referenceId,
 				accountId: this.props.accountId,
-				playerId: this.props.playerId,
+				playerId: event.type === PlayerEventTypes.WATCHED_TIME ? Platform.OS : this.props.playerId,
 				platform: Platform.OS,
 				mediaType: this.props.playerType === 'VoD' ? 'VoD' : 'LiveStream'
 			}
